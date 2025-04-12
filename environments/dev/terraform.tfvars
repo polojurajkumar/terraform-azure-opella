@@ -13,4 +13,7 @@ tags = {
   Project     = "Opella"
   ManagedBy   = "Terraform"
   Owner       = "DevOps"
-} 
+}
+
+admin_username = "adminuser"
+ssh_public_key = "PLACEHOLDER_FOR_SSH_KEY"  # Replace this with your actual SSH public key from step 2

@@ -28,6 +28,16 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
+    - name: Generate SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+        echo "SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> $GITHUB_ENV
+
+    - name: Update terraform.tfvars
+      run: |
+        sed -i "s|ssh_public_key = .*|ssh_public_key = \"$SSH_PUBLIC_KEY\"|" environments/dev/terraform.tfvars
+
     - name: Terraform Format
       id: fmt
       run: terraform fmt -check
@@ -80,4 +90,4 @@ jobs:
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -auto-approve
-      working-directory: ./environments/dev 
+      working-directory: ./environments/dev
