@@ -4,11 +4,21 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
 provider "azurerm" {
   features {}
+}
+
+resource "random_string" "unique" {
+  length  = 8
+  special = false
+  upper   = false
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -29,7 +39,7 @@ module "vnet" {
 }
 
 resource "azurerm_storage_account" "storage" {
-  name                     = "devst${var.environment}"
+  name                     = "devst${var.environment}${random_string.unique.result}"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = var.location
   account_tier             = "Standard"
@@ -42,15 +52,15 @@ resource "azurerm_linux_virtual_machine" "vm" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = var.location
   size                = "Standard_B1s"
-  admin_username      = "adminuser"
+  admin_username      = var.admin_username
 
   network_interface_ids = [
     azurerm_network_interface.nic.id
   ]
 
   admin_ssh_key {
-    username   = "adminuser"
-    public_key = file("~/.ssh/id_rsa.pub")
+    username   = var.admin_username
+    public_key = var.ssh_public_key
   }
 
   os_disk {

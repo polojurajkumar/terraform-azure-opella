@@ -33,4 +33,16 @@ variable "tags" {
     Project     = "Opella"
     ManagedBy   = "Terraform"
   }
+}
+
+variable "admin_username" {
+  description = "The username for the virtual machine"
+  type        = string
+  default     = "adminuser"
+}
+
+variable "ssh_public_key" {
+  description = "The SSH public key for the virtual machine"
+  type        = string
+  sensitive   = true
 } 
