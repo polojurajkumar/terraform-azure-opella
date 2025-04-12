@@ -1,1 +1,1 @@
-# terraform-azure-opella.
+# terraform-azure-opella
