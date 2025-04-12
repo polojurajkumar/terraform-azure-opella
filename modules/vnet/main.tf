@@ -4,14 +4,15 @@ resource "azurerm_virtual_network" "vnet" {
   location            = var.location
   address_space       = var.address_space
   tags                = var.tags
+}
 
-  dynamic "subnet" {
-    for_each = var.subnets
-    content {
-      name           = subnet.key
-      address_prefix = subnet.value
-    }
-  }
+resource "azurerm_subnet" "subnets" {
+  for_each = var.subnets
+
+  name                 = each.key
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = [each.value]
 }
 
 resource "azurerm_network_security_group" "nsg" {
@@ -39,8 +40,8 @@ resource "azurerm_network_security_group" "nsg" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "nsg_association" {
-  count = var.create_nsg ? length(var.subnets) : 0
+  for_each = var.create_nsg ? var.subnets : {}
 
-  subnet_id                 = azurerm_virtual_network.vnet.subnet[count.index].id
+  subnet_id                 = azurerm_subnet.subnets[each.key].id
   network_security_group_id = azurerm_network_security_group.nsg[0].id
 } 
