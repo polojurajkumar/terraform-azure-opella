@@ -40,7 +40,6 @@ jobs:
         terraform_version: ${{ env.TF_VERSION }}
 
     - name: Generate and Set SSH Public Key
-      id: ssh
       run: |
         mkdir -p ~/.ssh
         ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
@@ -54,26 +53,18 @@ jobs:
       run: terraform init
       working-directory: ./environments/dev
 
-    - name: Terraform Plan (Apply or Destroy)
-      run: |
-        if [ "${{ github.event.inputs.action }}" = "apply" ]; then
-          terraform plan
-        elif [ "${{ github.event.inputs.action }}" = "destroy" ]; then
-          terraform plan -destroy
-        else
-          echo "Invalid action input: ${{ github.event.inputs.action }}"
-          exit 1
-        fi
+    - name: Terraform Validate
+      run: terraform validate
       working-directory: ./environments/dev
 
-    - name: Terraform Apply or Destroy
+    - name: Terraform Action (Apply or Destroy)
       run: |
+        cd environments/dev
         if [ "${{ github.event.inputs.action }}" = "apply" ]; then
           terraform apply -auto-approve
         elif [ "${{ github.event.inputs.action }}" = "destroy" ]; then
           terraform destroy -auto-approve
         else
-          echo "Invalid action input: ${{ github.event.inputs.action }}"
+          echo "Invalid action: ${{ github.event.inputs.action }}"
           exit 1
         fi
-      working-directory: ./environments/dev
