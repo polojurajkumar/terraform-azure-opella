@@ -57,6 +57,12 @@ jobs:
         run: terraform validate
         working-directory: ./environments/dev
 
+      - name: Terraform Plan (Destroy)
+        run: |
+          cd environments/dev
+          terraform plan -destroy -var-file="terraform.tfvars"  # Plan the destroy action
+        working-directory: ./environments/dev
+
       - name: Terraform Apply or Destroy
         run: |
           cd environments/dev
