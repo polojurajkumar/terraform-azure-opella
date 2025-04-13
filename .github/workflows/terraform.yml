@@ -1,79 +1,57 @@
-name: 'Terraform Manual Workflow'
+name: Terraform Apply and Destroy
 
 on:
-  workflow_dispatch:
-    inputs:
-      action:
-        description: 'Terraform action to perform'
-        required: true
-        default: 'apply'
-        type: choice
-        options:
-          - apply
-          - destroy
+  workflow_dispatch:  # Manual trigger
 
 env:
-  TF_VERSION: '1.0.0'
-
-permissions:
-  id-token: write
-  contents: read
+  TF_VERSION: 1.0.0
+  TERRAFORM_DIR: environments/dev
+  SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
 
 jobs:
   terraform:
-    name: 'Terraform Manual Run'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Generate SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-          echo "SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> $GITHUB_ENV
-
-      - name: Inject SSH Key into tfvars
-        run: |
+    - name: Prepare terraform.tfvars with SSH key
+      run: |
+        cd $TERRAFORM_DIR
+        if [ -f terraform.tfvars ]; then
+          echo "Updating ssh_public_key in terraform.tfvars..."
           sed -i "s|^ssh_public_key *=.*|ssh_public_key = \"${SSH_PUBLIC_KEY//\"/\\\"}\"|" terraform.tfvars
-        working-directory: .  # Adjust if tfvars is somewhere else
+        else
+          echo "Creating terraform.tfvars..."
+          echo "ssh_public_key = \"${SSH_PUBLIC_KEY}\"" > terraform.tfvars
+        fi
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: .  # FIXED: adjust based on your repo layout
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ${{ env.TERRAFORM_DIR }}
 
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: .
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: ${{ env.TERRAFORM_DIR }}
 
-      - name: Terraform Plan or Destroy Plan
-        run: |
-          if [ "${{ github.event.inputs.action }}" = "destroy" ]; then
-            terraform plan -destroy -var-file="terraform.tfvars"
-          else
-            terraform plan -var-file="terraform.tfvars"
-          fi
-        working-directory: .
+    - name: Terraform Plan (Apply)
+      run: terraform plan -var-file="terraform.tfvars"
+      working-directory: ${{ env.TERRAFORM_DIR }}
 
-      - name: Terraform Apply or Destroy
-        run: |
-          if [ "${{ github.event.inputs.action }}" = "apply" ]; then
-            terraform apply -auto-approve -var-file="terraform.tfvars"
-          elif [ "${{ github.event.inputs.action }}" = "destroy" ]; then
-            terraform destroy -auto-approve -var-file="terraform.tfvars"
-          else
-            echo "Invalid action: ${{ github.event.inputs.action }}"
-            exit 1
-          fi
-        working-directory: .
+    - name: Terraform Apply
+      run: terraform apply -auto-approve -var-file="terraform.tfvars"
+      working-directory: ${{ env.TERRAFORM_DIR }}
+
+    - name: Terraform Plan Destroy
+      run: terraform plan -destroy -var-file="terraform.tfvars"
+      working-directory: ${{ env.TERRAFORM_DIR }}
+
+    - name: Terraform Destroy
+      run: terraform destroy -auto-approve -var-file="terraform.tfvars"
+      working-directory: ${{ env.TERRAFORM_DIR }}
