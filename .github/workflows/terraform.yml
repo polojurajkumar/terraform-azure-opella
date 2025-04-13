@@ -23,7 +23,6 @@ jobs:
   terraform:
     name: 'Terraform Manual Run'
     runs-on: ubuntu-latest
-    environment: development
 
     steps:
       - name: Checkout
@@ -47,25 +46,28 @@ jobs:
 
       - name: Inject SSH Key into tfvars
         run: |
-          sed -i "s|^ssh_public_key *=.*|ssh_public_key = \"${SSH_PUBLIC_KEY//\"/\\\"}\"|" environments/dev/terraform.tfvars
+          sed -i "s|^ssh_public_key *=.*|ssh_public_key = \"${SSH_PUBLIC_KEY//\"/\\\"}\"|" terraform.tfvars
+        working-directory: .  # Adjust if tfvars is somewhere else
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./environments/dev
+        working-directory: .  # FIXED: adjust based on your repo layout
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: ./environments/dev
+        working-directory: .
 
-      - name: Terraform Plan (Destroy)
+      - name: Terraform Plan or Destroy Plan
         run: |
-          cd environments/dev
-          terraform plan -destroy -var-file="terraform.tfvars"  # Plan the destroy action
-        working-directory: ./environments/dev
+          if [ "${{ github.event.inputs.action }}" = "destroy" ]; then
+            terraform plan -destroy -var-file="terraform.tfvars"
+          else
+            terraform plan -var-file="terraform.tfvars"
+          fi
+        working-directory: .
 
       - name: Terraform Apply or Destroy
         run: |
-          cd environments/dev
           if [ "${{ github.event.inputs.action }}" = "apply" ]; then
             terraform apply -auto-approve -var-file="terraform.tfvars"
           elif [ "${{ github.event.inputs.action }}" = "destroy" ]; then
@@ -74,3 +76,4 @@ jobs:
             echo "Invalid action: ${{ github.event.inputs.action }}"
             exit 1
           fi
+        working-directory: .
