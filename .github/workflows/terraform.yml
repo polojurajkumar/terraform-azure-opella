@@ -1,7 +1,17 @@
-name: Terraform Full Workflow (Apply & Destroy on Azure)
+name: Terraform Azure Infrastructure Management
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Select Terraform action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+        - plan
+        - apply
+        - destroy
 
 env:
   TF_VERSION: 1.0.0
@@ -10,6 +20,7 @@ env:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    environment: production  # Optional: Add environment for approval checks
 
     steps:
     - name: 📦 Checkout Code
@@ -46,18 +57,48 @@ jobs:
       run: terraform validate
       working-directory: ${{ env.TERRAFORM_DIR }}
 
-    - name: 📐 Terraform Plan (Apply)
-      run: terraform plan -out=tfplan -var-file="terraform.tfvars"
+    - name: 📐 Terraform Plan
+      if: inputs.action == 'plan'
+      run: |
+        terraform plan -var-file="terraform.tfvars"
       working-directory: ${{ env.TERRAFORM_DIR }}
 
+    - name: 📐 Terraform Plan for Apply
+      if: inputs.action == 'apply'
+      id: plan-apply
+      run: |
+        terraform plan -out=tfplan -var-file="terraform.tfvars"
+        echo "PLAN_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+        terraform show -no-color tfplan >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+      working-directory: ${{ env.TERRAFORM_DIR }}
+
+    - name: 📝 Show Apply Plan Output
+      if: inputs.action == 'apply'
+      run: |
+        echo "${{ steps.plan-apply.outputs.PLAN_OUTPUT }}"
+
     - name: 🚀 Terraform Apply
+      if: inputs.action == 'apply'
       run: terraform apply -auto-approve tfplan
       working-directory: ${{ env.TERRAFORM_DIR }}
 
-    - name: 💥 Terraform Plan Destroy
-      run: terraform plan -destroy -out=destroyplan -var-file="terraform.tfvars"
+    - name: 📐 Terraform Plan for Destroy
+      if: inputs.action == 'destroy'
+      id: plan-destroy
+      run: |
+        terraform plan -destroy -out=destroyplan -var-file="terraform.tfvars"
+        echo "DESTROY_PLAN_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+        terraform show -no-color destroyplan >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
       working-directory: ${{ env.TERRAFORM_DIR }}
 
-    - name: 🧨 Terraform Destroy
+    - name: 📝 Show Destroy Plan Output
+      if: inputs.action == 'destroy'
+      run: |
+        echo "${{ steps.plan-destroy.outputs.DESTROY_PLAN_OUTPUT }}"
+
+    - name: � Terraform Destroy
+      if: inputs.action == 'destroy'
       run: terraform apply -auto-approve destroyplan
       working-directory: ${{ env.TERRAFORM_DIR }}
