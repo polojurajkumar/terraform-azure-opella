@@ -18,8 +18,8 @@ env:
   TERRAFORM_DIR: environments/dev
 
 permissions:
-  id-token: write  # Required for OIDC
-  contents: read   # Required for checkout
+  id-token: write  # Required for requesting JWT for OIDC
+  contents: read   # Required for checking out the repository
 
 jobs:
   terraform:
@@ -27,26 +27,27 @@ jobs:
 
     steps:
     - name: 📦 Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # Updated to latest version
 
     - name: 🔐 Azure Login (OIDC)
-      uses: azure/login@v1
+      uses: azure/login@v2  # Updated to v2 for better OIDC support
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         enable-AzPSSession: false
+        az-cli-version: latest  # Explicitly use latest Azure CLI
 
     - name: 🔧 Setup Terraform
-      uses: hashicorp/setup-terraform@v2
+      uses: hashicorp/setup-terraform@v3  # Updated to latest version
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
     - name: 📄 Inject SSH Key into terraform.tfvars
       run: |
-        cd $TERRAFORM_DIR
+        cd ${{ env.TERRAFORM_DIR }}
         if [ -f terraform.tfvars ]; then
-          echo "Updating ssh_public_key..."
+          echo "Updating ssh_public_key in terraform.tfvars"
           sed -i "s|^ssh_public_key *=.*|ssh_public_key = \"${{ secrets.SSH_PUBLIC_KEY }}\"|" terraform.tfvars
         else
           echo "Creating terraform.tfvars with ssh_public_key"
@@ -63,8 +64,7 @@ jobs:
 
     - name: 📐 Terraform Plan
       if: inputs.action == 'plan'
-      run: |
-        terraform plan -var-file="terraform.tfvars"
+      run: terraform plan -var-file="terraform.tfvars"
       working-directory: ${{ env.TERRAFORM_DIR }}
 
     - name: 📐 Terraform Plan for Apply
@@ -79,8 +79,7 @@ jobs:
 
     - name: 📝 Show Apply Plan Output
       if: inputs.action == 'apply'
-      run: |
-        echo "${{ steps.plan-apply.outputs.PLAN_OUTPUT }}"
+      run: echo "${{ steps.plan-apply.outputs.PLAN_OUTPUT }}"
 
     - name: 🚀 Terraform Apply
       if: inputs.action == 'apply'
@@ -99,8 +98,7 @@ jobs:
 
     - name: 📝 Show Destroy Plan Output
       if: inputs.action == 'destroy'
-      run: |
-        echo "${{ steps.plan-destroy.outputs.DESTROY_PLAN_OUTPUT }}"
+      run: echo "${{ steps.plan-destroy.outputs.DESTROY_PLAN_OUTPUT }}"
 
     - name: 🧨 Terraform Destroy
       if: inputs.action == 'destroy'
