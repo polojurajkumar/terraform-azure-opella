@@ -1,4 +1,11 @@
 terraform {
+  backend "azurerm" {
+    resource_group_name  = "terraform-infra"
+    storage_account_name = "tfstatea1b2c3"             # Replace with your unique one
+    container_name       = "tfstate"
+    key                  = "environments/dev/terraform.tfstate"
+  }
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
