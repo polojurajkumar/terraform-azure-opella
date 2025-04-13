@@ -39,6 +39,17 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
 
+    - name: Generate and Set SSH Public Key
+      id: ssh
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+        echo "SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> $GITHUB_ENV
+
+    - name: Inject SSH Key into tfvars
+      run: |
+        sed -i "s|^ssh_public_key *=.*|ssh_public_key = \"${SSH_PUBLIC_KEY//\"/\\\"}\"|" environments/dev/terraform.tfvars
+
     - name: Terraform Init
       run: terraform init
       working-directory: ./environments/dev
